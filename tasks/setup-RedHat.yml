@@ -15,6 +15,7 @@
   rpm_key:
     state: present
     key: "{{ jenkins_repo_key_url }}"
+  environment: "{{ proxy_env|d(omit) }}"
 
 - name: Download specific Jenkins version.
   get_url:
