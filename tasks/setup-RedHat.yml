@@ -10,8 +10,13 @@
   get_url:
     url: "{{ jenkins_repo_url }}"
     dest: /etc/yum.repos.d/jenkins.repo
-    use_proxy: "{{ proxy_use|d(omit) }}"
   environment: "{{ proxy_env|d(omit) }}"
+
+- name: Set proxy for jenkins repo.
+  lineinfile:
+    path: /etc/yum.repos.d/jenkins.repo
+    line: proxy={{ proxy_env.https_proxy|d(proxy_env.http_proxy,true) }}
+  when: proxy_env is defined
 
 - name: Add Jenkins repo GPG key.
   rpm_key:
@@ -24,7 +29,6 @@
   get_url:
     url: "{{ jenkins_pkg_url }}/jenkins-{{ jenkins_version }}-1.1.noarch.rpm"
     dest: "/tmp/jenkins.rpm"
-    use_proxy: "{{ proxy_use|d(omit) }}"
   environment: "{{ proxy_env|d(omit) }}"
   when: jenkins_version is defined
 
@@ -41,7 +45,6 @@
   notify:
     - configure default users
     - configure proxy
-
 
 - name: Validate Jenkins is installed and register package name.
   package:
