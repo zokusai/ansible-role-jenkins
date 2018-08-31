@@ -4,13 +4,15 @@
     name:
       - curl
       - libselinux-python
-    state: installed
+      - initscripts
+    state: present
 
 - name: Ensure Jenkins repo is installed.
   get_url:
     url: "{{ jenkins_repo_url }}"
     dest: /etc/yum.repos.d/jenkins.repo
   environment: "{{ proxy_env|d(omit) }}"
+  when: jenkins_repo_url != ''
 
 - name: Set proxy for jenkins repo.
   lineinfile:
@@ -28,36 +30,25 @@
 - name: Download specific Jenkins version.
   get_url:
     url: "{{ jenkins_pkg_url }}/jenkins-{{ jenkins_version }}-1.1.noarch.rpm"
-    dest: "/tmp/jenkins.rpm"
+    dest: "/tmp/jenkins-{{ jenkins_version }}-1.1.noarch.rpm"
   environment: "{{ proxy_env|d(omit) }}"
   when: jenkins_version is defined
 
 - name: Check if we downloaded a specific version of Jenkins.
   stat:
-    path: "/tmp/jenkins.rpm"
+    path: "/tmp/jenkins-{{ jenkins_version }}-1.1.noarch.rpm"
   register: specific_version
+  when: jenkins_version is defined
 
 - name: Install our specific version of Jenkins.
   package:
-    name: "/tmp/jenkins.rpm"
-    state: installed
-  when: specific_version.stat.exists
-  notify:
-    - configure default users
-    - configure proxy
-
-- name: Validate Jenkins is installed and register package name.
-  package:
-    name: jenkins
+    name: "/tmp/jenkins-{{ jenkins_version }}-1.1.noarch.rpm"
     state: present
-  when: not specific_version.stat.exists
-  notify:
-    - configure default users
-    - configure proxy
+  when: jenkins_version is defined and specific_version.stat.exists
+  notify: configure default users
 
-
-- name: Install Jenkins from repository.
+- name: Ensure Jenkins is installed.
   package:
     name: jenkins
-    state: installed
-  when: jenkins_version is undefined
+    state: "{{ jenkins_package_state }}"
+  notify: configure default users

@@ -3,7 +3,14 @@
 
   vars:
     jenkins_plugins:
-      - ant
+      - blueocean
+      - ghprb
+      - greenballs
+      - workflow-aggregator
+    jenkins_plugin_timeout: 120
+
+  pre_tasks:
+    - include_tasks: java-8.yml
 
   roles:
     - geerlingguy.java
