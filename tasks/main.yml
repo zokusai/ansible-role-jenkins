@@ -41,15 +41,19 @@
   tags: [jenkins]
 
 - name: Wait for Jenkins to start up before proceeding.
-  shell: "curl -D - --silent --max-time 5 http://{{ jenkins_hostname }}:{{ jenkins_http_port }}{{ jenkins_url_prefix }}/cli/"
+  command: >
+    curl -D - --silent --max-time 5 http://{{ jenkins_hostname }}:{{ jenkins_http_port }}{{ jenkins_url_prefix }}/cli/
   args:
-    warn: no
+    warn: false
   register: result
-  until: (result.stdout.find("403 Forbidden") != -1) or (result.stdout.find("200 OK") != -1) and (result.stdout.find("Please wait while") == -1)
+  until: >
+    (result.stdout.find("403 Forbidden") != -1)
+    or (result.stdout.find("200 OK") != -1)
+    and (result.stdout.find("Please wait while") == -1)
   retries: "{{ jenkins_connection_retries }}"
   delay: "{{ jenkins_connection_delay }}"
   changed_when: false
-  check_mode: no
+  check_mode: false
   tags: [jenkins]
 
 - name: Get the jenkins-cli jarfile from the Jenkins server.
@@ -60,7 +64,7 @@
   until: "'OK' in jarfile_get.msg or '304' in jarfile_get.msg or 'file already exists' in jarfile_get.msg"
   retries: 5
   delay: 10
-  check_mode: no
+  check_mode: false
   tags: [jenkins]
 
 - name: Remove Jenkins security init scripts after first startup.
@@ -69,13 +73,5 @@
     state: absent
   tags: [jenkins]
 
-- name: Remove Jenkins proxy init scripts after first startup.
-  file:
-    path: "{{ jenkins_home }}/init.groovy.d/basic-proxy.groovy"
-    state: absent
-  tags: [jenkins]
-  # Mine??
-
 # Update Jenkins and install configured plugins.
 - include_tasks: plugins.yml
-  tags: [jenkins]

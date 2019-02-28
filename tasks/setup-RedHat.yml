@@ -12,7 +12,8 @@
     url: "{{ jenkins_repo_url }}"
     dest: /etc/yum.repos.d/jenkins.repo
   environment: "{{ proxy_env|d(omit) }}"
-  when: jenkins_repo_url != ''
+  when: jenkins_repo_url != ""
+  tags: ['skip_ansible_lint']
 
 - name: Set proxy for jenkins repo.
   lineinfile:
