@@ -28,25 +28,26 @@
     validate_certs: "{{ jenkins_validate_certs }}"
   environment: "{{ proxy_env|d(omit) }}"
 
-- name: Download specific Jenkins version.
-  get_url:
-    url: "{{ jenkins_pkg_url }}/jenkins-{{ jenkins_version }}-1.1.noarch.rpm"
-    dest: "/tmp/jenkins-{{ jenkins_version }}-1.1.noarch.rpm"
-  environment: "{{ proxy_env|d(omit) }}"
-  when: jenkins_version is defined
+- when: jenkins_version is defined
+  block:
+  - name: Download specific Jenkins version.
+    get_url:
+      url: "{{ jenkins_pkg_url }}/jenkins-{{ jenkins_version }}-1.1.noarch.rpm"
+      dest: "/tmp/jenkins-{{ jenkins_version }}-1.1.noarch.rpm"
+    environment: "{{ proxy_env|d(omit) }}"
 
-- name: Check if we downloaded a specific version of Jenkins.
-  stat:
-    path: "/tmp/jenkins-{{ jenkins_version }}-1.1.noarch.rpm"
-  register: specific_version
-  when: jenkins_version is defined
+  - name: Check if we downloaded a specific version of Jenkins.
+    stat:
+      path: "/tmp/jenkins-{{ jenkins_version }}-1.1.noarch.rpm"
+    register: specific_version
 
-- name: Install our specific version of Jenkins.
-  package:
-    name: "/tmp/jenkins-{{ jenkins_version }}-1.1.noarch.rpm"
-    state: present
-  when: jenkins_version is defined and specific_version.stat.exists
-  notify: configure default users
+  - name: Install our specific version of Jenkins.
+    package:
+      name: "/tmp/jenkins-{{ jenkins_version }}-1.1.noarch.rpm"
+      state: present
+    when: specific_version.stat.exists
+    notify: configure default users
+  #end-block
 
 - name: Ensure Jenkins is installed.
   package:

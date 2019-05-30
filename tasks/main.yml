@@ -1,77 +1,97 @@
 ---
-# Variable setup.
-- name: Include OS-Specific variables
-  include_vars: "{{ ansible_os_family }}.yml"
+- name: BEGIN jenkins
   tags: [jenkins]
+  block:
 
-- name: Define jenkins_repo_url
-  set_fact:
-    jenkins_repo_url: "{{ __jenkins_repo_url }}"
-  when: jenkins_repo_url is not defined
-  tags: [jenkins]
+  - name: Define server protocol
+    set_fact:
+      jenkins_protocol: >-
+        {{
+          (jenkins_https_port|d('',true) != '')|ternary('https', 'http')
+        }}
 
-- name: Define jenkins_repo_key_url
-  set_fact:
-    jenkins_repo_key_url: "{{ __jenkins_repo_key_url }}"
-  when: jenkins_repo_key_url is not defined
-  tags: [jenkins]
+  - name: Define server main port
+    set_fact:
+      jenkins_main_port: >-
+        {{
+          (jenkins_protocol == 'https')|ternary(jenkins_https_port, jenkins_http_port)
+        }}
 
-- name: Define jenkins_pkg_url
-  set_fact:
-    jenkins_pkg_url: "{{ __jenkins_pkg_url }}"
-  when: jenkins_pkg_url is not defined
-  tags: [jenkins]
+  - name: Define server uri
+    set_fact:
+      jenkins_server_uri: >-
+        {{
+          '%s://%s:%s%s'|format(
+            jenkins_protocol,
+            jenkins_hostname,
+            jenkins_main_port,
+            jenkins_url_prefix
+          )
+        }}
 
-# Setup/install tasks.
-- include_tasks: setup-RedHat.yml
-  when: ansible_os_family == 'RedHat'
-  tags: [jenkins]
+  # Variable setup.
+  - name: Include OS-Specific variables
+    include_vars: "{{ ansible_os_family }}.yml"
 
-- include_tasks: setup-Debian.yml
-  when: ansible_os_family == 'Debian'
-  tags: [jenkins]
+  - name: Define jenkins_repo_url
+    set_fact:
+      jenkins_repo_url: "{{ __jenkins_repo_url }}"
+    when: jenkins_repo_url is not defined
 
-# Configure Jenkins init settings.
-- include_tasks: settings.yml
-  tags: [jenkins]
+  - name: Define jenkins_repo_key_url
+    set_fact:
+      jenkins_repo_key_url: "{{ __jenkins_repo_key_url }}"
+    when: jenkins_repo_key_url is not defined
 
-# Make sure Jenkins starts, then configure Jenkins.
-- name: Ensure Jenkins is started and runs on startup.
-  service: name=jenkins state=started enabled=yes
-  tags: [jenkins]
+  - name: Define jenkins_pkg_url
+    set_fact:
+      jenkins_pkg_url: "{{ __jenkins_pkg_url }}"
+    when: jenkins_pkg_url is not defined
 
-- name: Wait for Jenkins to start up before proceeding.
-  command: >
-    curl -D - --silent --max-time 5 http://{{ jenkins_hostname }}:{{ jenkins_http_port }}{{ jenkins_url_prefix }}/cli/
-  args:
-    warn: false
-  register: result
-  until: >
-    (result.stdout.find("403 Forbidden") != -1)
-    or (result.stdout.find("200 OK") != -1)
-    and (result.stdout.find("Please wait while") == -1)
-  retries: "{{ jenkins_connection_retries }}"
-  delay: "{{ jenkins_connection_delay }}"
-  changed_when: false
-  check_mode: false
-  tags: [jenkins]
+  # Setup/install tasks.
+  - include_tasks: setup-RedHat.yml
+    when: ansible_os_family == 'RedHat'
 
-- name: Get the jenkins-cli jarfile from the Jenkins server.
-  get_url:
-    url: "http://{{ jenkins_hostname }}:{{ jenkins_http_port }}{{ jenkins_url_prefix }}/jnlpJars/jenkins-cli.jar"
-    dest: "{{ jenkins_jar_location }}"
-  register: jarfile_get
-  until: "'OK' in jarfile_get.msg or '304' in jarfile_get.msg or 'file already exists' in jarfile_get.msg"
-  retries: 5
-  delay: 10
-  check_mode: false
-  tags: [jenkins]
+  - include_tasks: setup-Debian.yml
+    when: ansible_os_family == 'Debian'
 
-- name: Remove Jenkins security init scripts after first startup.
-  file:
-    path: "{{ jenkins_home }}/init.groovy.d/basic-security.groovy"
-    state: absent
-  tags: [jenkins]
+  # Configure Jenkins init settings.
+  - include_tasks: settings.yml
 
-# Update Jenkins and install configured plugins.
-- include_tasks: plugins.yml
+  # Make sure Jenkins starts, then configure Jenkins.
+  - name: Ensure Jenkins is started and runs on startup.
+    service: name=jenkins state=started enabled=yes
+
+  - name: Wait for Jenkins to start up before proceeding.
+    command: >
+      curl -k -D - --silent --max-time 5 {{ jenkins_server_uri }}/cli/
+    args:
+      warn: false
+    register: result
+    until: >
+      (result.stdout.find("403 Forbidden") != -1)
+      or (result.stdout.find("200 OK") != -1)
+      and (result.stdout.find("Please wait while") == -1)
+    retries: "{{ jenkins_connection_retries }}"
+    delay: "{{ jenkins_connection_delay }}"
+    changed_when: false
+    check_mode: false
+
+  - name: Get the jenkins-cli jarfile from the Jenkins server.
+    get_url:
+      url: "{{ jenkins_server_uri }}/jnlpJars/jenkins-cli.jar"
+      dest: "{{ jenkins_jar_location }}"
+      validate_certs: false
+    register: jarfile_get
+    until: "'OK' in jarfile_get.msg or '304' in jarfile_get.msg or 'file already exists' in jarfile_get.msg"
+    retries: 5
+    delay: 10
+    check_mode: false
+
+  - name: Remove Jenkins security init scripts after first startup.
+    file:
+      path: "{{ jenkins_home }}/init.groovy.d/basic-security.groovy"
+      state: absent
+
+  # Update Jenkins and install configured plugins.
+  - include_tasks: plugins.yml

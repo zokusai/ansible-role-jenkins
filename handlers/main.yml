@@ -16,4 +16,3 @@
     src: basic-proxy.groovy
     dest: "{{ jenkins_home }}/init.groovy.d/basic-proxy.groovy"
   register: jenkins_proxy_config
-  

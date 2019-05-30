@@ -22,6 +22,7 @@
     group: jenkins
 
 - name: Download current plugin updates from Jenkins update site.
+  environment: "{{ proxy_env|d(omit) }}"
   get_url:
     url: "{{ jenkins_updates_url }}/update-center.json"
     dest: "{{ jenkins_home }}/updates/default.json"
@@ -33,7 +34,6 @@
   until: get_result is success
   retries: 3
   delay: 2
-  environment: "{{ proxy_env|d(omit) }}"
 
 - name: Remove first and last line from json file.
   replace:
@@ -41,6 +41,7 @@
     regexp: "1d;$d"
 
 - name: Install Jenkins plugins using password.
+  environment: "{{ proxy_env|d(omit) }}"
   jenkins_plugin:
     name: "{{ item }}"
     jenkins_home: "{{ jenkins_home }}"
@@ -50,11 +51,10 @@
     timeout: "{{ jenkins_plugin_timeout }}"
     updates_expiration: "{{ jenkins_plugin_updates_expiration }}"
     updates_url: "{{ jenkins_updates_url }}"
-    url: "http://{{ jenkins_hostname }}:{{ jenkins_http_port }}{{ jenkins_url_prefix }}"
+    url: "{{ jenkins_server_uri }}"
     with_dependencies: "{{ jenkins_plugins_install_dependencies }}"
   with_items: "{{ jenkins_plugins }}"
   when: jenkins_admin_password != ""
-  environment: "{{ proxy_env|d(omit) }}"
   notify: restart jenkins
   tags: ['skip_ansible_lint']
   register: plugin_result

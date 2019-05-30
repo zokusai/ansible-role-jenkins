@@ -12,6 +12,7 @@ jenkins_connection_retries: 60
 jenkins_home: /var/lib/jenkins
 jenkins_hostname: localhost
 jenkins_http_port: 8080
+jenkins_https_port: ""
 jenkins_jar_location: /opt/jenkins-cli.jar
 jenkins_url_prefix: ""
 jenkins_java_options: "-Djenkins.install.runSetupWizard=false"
@@ -33,6 +34,8 @@ jenkins_process_group: "{{ jenkins_process_user }}"
 
 jenkins_http_proxy: "{{ ansible_env.http_proxy|default('') or ansible_env.HTTP_PROXY|default('') }}"
 jenkins_no_proxy: "{{ ansible_env.no_proxy|default('') or ansible_env.NO_PROXY|default('') }}"
+
+jenkins_keystore: "{{ jenkins_home }}/.keystore/jenkins.jks"
 
 jenkins_init_changes:
   - option: "JENKINS_ARGS"
